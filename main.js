@@ -17,19 +17,18 @@ async function fetchMigrationData() {
   });
 
   const data = await response.json();
-  console.log(data); // Debug: Check the data structure
   const areas = data.dimension.Alue.category.index;
   const values = data.value;
 
   let idx = 0;
   for (const code in areas) {
-    const pos = values[idx] || 0;
-    const neg = values[idx + 1] || 0;
+    const pos = values[idx];
+    const neg = values[idx + 1];
     migrationData[code] = { pos, neg };
     idx += 2;
   }
 }
-
+console.log('Migration data fetched:', migrationData); // Debug: Log the entire migration data object
 async function initMap() {
   await fetchMigrationData();
 
@@ -39,7 +38,9 @@ async function initMap() {
   const geoLayer = L.geoJSON(geojson, {
     style: feature => {
       const code = feature.properties.kunta;
-      const { pos = 0, neg = 1 } = migrationData[code] || {};
+      const data = migrationData['KU' + code] || { pos: 0, neg: 1 }; // Default to 0, 1 if undefined
+      const { pos, neg } = data;
+      // console.log(`Municipality: ${code}, Pos: ${pos}, Neg: ${neg}`); // Debug data
       const hue = neg ? Math.min((pos / neg) ** 3 * 60, 120) : 0;
       return {
         weight: 2,
@@ -49,7 +50,8 @@ async function initMap() {
     onEachFeature: (feature, layer) => {
       const name = feature.properties.nimi;
       const code = feature.properties.kunta;
-      const { pos = 0, neg = 0 } = migrationData[code] || {};
+      const data = migrationData['KU' + code] || { pos: 0, neg: 0 }; // Default to 0, 0 for popup
+      const { pos, neg } = data;
 
       layer.bindTooltip(name);
       layer.on('click', () => {
