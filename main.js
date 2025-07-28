@@ -1,4 +1,4 @@
-const map = L.map('map', { minZoom: -3 }).setView([65, 26], 5);
+const map = L.map('map', { minZoom: 3 }).setView([65, 26], 5);
 
 // OpenStreetMap background
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -6,9 +6,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // Data containers
-let migrationData = {}; // Keyed by municipality code
+let migrationData = {};
 
-// Load migration data
 async function fetchMigrationData() {
   const query = await fetch('migration_data_query.json').then(res => res.json());
   const response = await fetch('https://pxdata.stat.fi:443/PxWeb/api/v1/fi/StatFin/muutl/statfin_muutl_pxt_11a2.px', {
@@ -18,19 +17,19 @@ async function fetchMigrationData() {
   });
 
   const data = await response.json();
+  console.log(data); // Debug: Check the data structure
   const areas = data.dimension.Alue.category.index;
   const values = data.value;
 
   let idx = 0;
   for (const code in areas) {
-    const pos = values[idx];
-    const neg = values[idx + 1];
+    const pos = values[idx] || 0;
+    const neg = values[idx + 1] || 0;
     migrationData[code] = { pos, neg };
     idx += 2;
   }
 }
 
-// Load GeoJSON and render
 async function initMap() {
   await fetchMigrationData();
 
@@ -41,7 +40,7 @@ async function initMap() {
     style: feature => {
       const code = feature.properties.kunta;
       const { pos = 0, neg = 1 } = migrationData[code] || {};
-      const hue = Math.min((pos / neg) ** 3 * 60, 120);
+      const hue = neg ? Math.min((pos / neg) ** 3 * 60, 120) : 0;
       return {
         weight: 2,
         color: `hsl(${hue}, 75%, 50%)`
@@ -53,7 +52,6 @@ async function initMap() {
       const { pos = 0, neg = 0 } = migrationData[code] || {};
 
       layer.bindTooltip(name);
-
       layer.on('click', () => {
         layer.bindPopup(`<b>${name}</b><br>Positive: ${pos}<br>Negative: ${neg}`).openPopup();
       });
